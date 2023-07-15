@@ -44,3 +44,14 @@ def test_parse_ad(filename, expected):
     assert parsed_ad.url == expected.url
     assert parsed_ad.seller == expected.seller
     assert parsed_ad.attributes == expected.attributes
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ["tests/fixtures/car_ad_kia_pid14919888.html", "tests/fixtures/job_ad.html"],
+)
+def test_parse_ad_complete(filename):
+    with open(filename, "r") as file:
+        file_contents = file.read()
+
+    SUT(file_contents)

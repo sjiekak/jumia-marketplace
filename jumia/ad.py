@@ -9,7 +9,7 @@ from unidecode import unidecode
 class Seller:
     name: str
     location: str
-    phone: str
+    phone: str | None
 
 
 @dataclass
@@ -22,42 +22,53 @@ class Advert:
     url: str
     image_urls: list[str]
 
-    price: float | None
+    price: int | float | str
     currency: str
     seller: Seller
 
 
+def _findtag(tag: bs4.Tag, *args, **kwargs) -> bs4.Tag:
+    res = tag.find(*args, **kwargs)
+    assert res is not None and isinstance(res, bs4.Tag)
+    return res
+
+
 def parse(markup: str | bytes) -> Advert:
+    # mypy: disable-error-code="union-attr"
     soup = bs4.BeautifulSoup(markup, "lxml")
 
-    article = soup.find("article", class_="singlepost")
+    article = _findtag(soup, "article", class_="singlepost")
 
-    title = article.find("span", itemprop="name").text.strip()
-    description = article.find("div", itemprop="description").text.strip()
+    title = _findtag(article, "span", itemprop="name").text.strip()
+    description = _findtag(article, "div", itemprop="description").text.strip()
 
     # side elements
-    aside = article.find("aside")
-    url = aside.find("meta", itemprop="url")["content"].strip()
-    price = aside.find("span", itemprop="price")["content"].strip()
-    currency = aside.find("span", itemprop="priceCurrency")["content"].strip()
-    seller_name = aside.find("span", itemprop="name").text.strip()
-    seller_location = aside.find("span", itemprop="addressLocality").text.strip()
-    posted_on = aside.find("time", datetime=True)["datetime"]
-    
+    aside = _findtag(article, "aside")
+    url = "".join(_findtag(aside, "meta", itemprop="url")["content"])
+    price = "".join(_findtag(aside, "span", itemprop="price")["content"])
+    currency = "".join(_findtag(aside, "span", itemprop="priceCurrency")["content"])
+    seller_name = _findtag(aside, "span", itemprop="name").text.strip()
+    seller_location = _findtag(aside, "span", itemprop="addressLocality").text.strip()
+    posted_on = "".join(_findtag(aside, "time")["datetime"])
+
     try:
-        posted_on = datetime.strptime(posted_on, "%d.%m.%Y %H:%M")
+        posted_on_timestamp: datetime | str = datetime.strptime(
+            posted_on, "%d.%m.%Y %H:%M"
+        )
     except ValueError:
-        pass
-    
+        posted_on_timestamp = posted_on
+
     try:
-        phone_number = article.find("div", class_="phone-box show").find("a").text.strip()
+        phone_number_location = _findtag(article, "div", class_="phone-box show")
+        phone_number = _findtag(phone_number_location, "a").text.strip()
     except AttributeError:
         phone_number = None
 
     # attributes
-    attributes_elt = article.find("div", class_="post-attributes").find_next(
+    attributes_elt = _findtag(article, "div", class_="post-attributes").find_next(
         "div", class_="new-attr-style"
     )
+    assert isinstance(attributes_elt, bs4.Tag)
     attributes_raw = {}
 
     for elt in attributes_elt.find_all(recursive=False):
@@ -68,7 +79,7 @@ def parse(markup: str | bytes) -> Advert:
     return Advert(
         title=title,
         description=description,
-        timestamp=posted_on,
+        timestamp=posted_on_timestamp,
         attributes=_sanitize_attributes(attributes_raw),
         url=url,
         image_urls=[],
@@ -96,10 +107,10 @@ def _sanitize_attributes(attributes: dict) -> dict:
 def _int_or_float_if_possible(value: str) -> int | float | str:
     """convert to int or float if possible"""
     try:
-        value = int(value)
+        return int(value)
     except ValueError:
         try:
-            value = float(value)
+            return float(value)
         except ValueError:
             pass
     return value
