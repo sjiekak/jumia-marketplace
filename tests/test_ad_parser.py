@@ -9,17 +9,17 @@ from jumia.ad import parse as SUT
 _car_ad = Advert(
     title="KIA Sorento 2013 Occasion Europe",
     url="https://www.jumia.cm/kia-sorento-2013-occasion-europe--pid14919888",
-    posted=datetime(2013, 7, 15, 20, 24),
+    timestamp=datetime(2023, 7, 15, 20, 24),
     attributes={
-        "brand": "Kia",
-        "model": "Sorento",
+        "marque": "Kia",
+        "modele": "Sorento",
         "transmission": "Manuelle",
-        "fuel": "Essence",
-        "year": 2013,
-        "mileage": 103200,
-        "price": 8500000,
-        "currency": "FCFA",
+        "carburant": "Essence",
+        "annee": 2013,
+        "kilometrage": 103200,
     },
+    price=8500000,
+    currency="FCFA",
     seller=Seller(
         name="Aurelien",
         location="Beedi",
@@ -39,6 +39,7 @@ def test_parse_ad(filename, expected):
 
     parsed_ad = SUT(file_contents)
 
+    assert parsed_ad.timestamp == expected.timestamp
     assert parsed_ad.title == expected.title
     assert parsed_ad.url == expected.url
     assert parsed_ad.seller == expected.seller
